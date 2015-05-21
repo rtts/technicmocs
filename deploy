@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+import sys
+from fabric.api import *
+from fabric.contrib.files import exists, append
+
+env.user = 'masterbuilder'
+
+def deploy():
+    apt_install('build-essential ruby ruby-dev git tcl')
+    gem_setup()
+    gem_install('bundler rake')
+    github('antirez/redis')
+    github('antirez/lamernews')
+
+    with cd('redis'):
+        run('git checkout 3.0.1')
+        run('make')
+        #run('make test')
+
+    with cd('lamernews'):
+        run('sed -i "/ruby \'1.9.3\'/d" Gemfile')
+        run('bundle install')
+
+def apt_install(packages):
+    if command_fails('dpkg -l %s' % packages):
+        sudo('apt-get install %s' % packages)
+
+def gem_setup():
+    if command_fails('grep -q GEM_HOME .profile'):
+        append('.profile', 'export GEM_HOME=/home/%s/gems' % env.user)
+        append('.profile', 'export PATH=$GEM_HOME/bin:$PATH')
+
+def gem_install(packages):
+    packages = packages.split(' ')
+    for package in packages:
+        if command_fails('gem list -i %s' % package):
+            run('gem install %s' % package)
+
+def github(repo):
+    directory = repo.split('/')[-1].rstrip('.git')
+    if not exists(directory):
+        run('git clone https://github.com/%s %s' % (repo, directory))
+
+def command_fails(command):
+    with settings(hide('warnings'), warn_only=True):
+        return run(command).failed
+
+if __name__ == '__main__':
+    deploy()
