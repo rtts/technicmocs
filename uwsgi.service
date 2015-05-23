@@ -1,0 +1,14 @@
+[Unit]
+Description=uWSGI Emperor Service
+After=syslog.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/uwsgi --uid www-data --gid www-data --emperor /etc/uwsgi.d/
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGINT
+Restart=always
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target

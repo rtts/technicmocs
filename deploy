@@ -9,8 +9,8 @@ env.host_string = 'technicmocs.created.today'
 
 def deploy():
     # Get the necessary packages
-    apt_install('build-essential ruby ruby-dev git tcl nginx uwsgi uwsgi-plugin-rack*')
-    gem_install('bundler rake')
+    apt_install('build-essential ruby ruby-dev git tcl nginx')
+    gem_install('bundler rake uwsgi')
     github('antirez/redis')
     github('antirez/lamernews')
 
@@ -30,18 +30,21 @@ def deploy():
     # Setup the Lamernews app
     with cd('lamernews'):
         run('sed -i "/ruby \'1.9.3\'/d" Gemfile')
-        run('bundle install')
+        rubyrun('bundle install')
         put('app_config.rb', 'app_config.rb')
+
+    # Configure uwsgi
+    sudo('cp /srv/%s/gems/bin/uwsgi /usr/local/bin')
+    sudo('mkdir -p /etc/uwsgi')
+    put('uwsgi.ini', '/etc/uwsgi/%s.ini' % project_name, use_sudo=True)
+    put('uwsgi.service', '/etc/systemd/system/uwsgi.service', use_sudo=True)
+    sudo('systemctl daemon-reload')
+    sudo('systemctl enable uwsgi')
+    sudo('systemctl start uwsgi')
 
     # Configure nginx
     put('nginx.conf', '/etc/nginx/sites-enabled/%s' % project_name, use_sudo=True)
-    sudo('systemctl enable nginx')
-    sudo('systemctl start nginx')
-
-    # Configure uwsgi
-    put('uwsgi.ini', '/etc/uwsgi/apps-enabled/%s' % project_name, use_sudo=True)
-    sudo('systemctl enable uwsgi')
-    sudo('systemctl start uwsgi')
+    sudo('systemctl reload nginx')
 
 def apt_install(packages):
     if command_fails('dpkg -l %s' % packages):
@@ -49,24 +52,26 @@ def apt_install(packages):
 
 def gem_install(packages):
     packages = packages.split(' ')
-    gem_setup()
     for package in packages:
-        if command_fails('gem list -i %s' % package):
-            run('gem install %s' % package)
-
-def gem_setup():
-    if command_fails('grep -q GEM_HOME .profile'):
-        append('.profile', 'export GEM_HOME=/home/%s/gems' % env.user)
-        append('.profile', 'export PATH=$GEM_HOME/bin:$PATH')
+        if ruby_command_fails('gem list -i %s' % package):
+            rubyrun('gem install %s' % package)
 
 def github(repo):
-    directory = repo.split('/')[-1].rstrip('.git')
+    directory = repo.split('/')[-1]
     if not exists(directory):
         run('git clone https://github.com/%s %s' % (repo, directory))
 
 def command_fails(command):
     with settings(hide('warnings'), warn_only=True):
         return run(command).failed
+
+def ruby_command_fails(command):
+    with settings(hide('warnings'), warn_only=True):
+        return rubyrun(command).failed
+
+def rubyrun(command):
+    with shell_env(GEM_HOME='/srv/%s/gems' % project_name):
+        run(command)
 
 if __name__ == '__main__':
     deploy()
