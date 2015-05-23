@@ -1,0 +1,16 @@
+[Unit]
+Description=Redis - Data Structure Server
+After=syslog.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/redis-server /etc/redis.conf
+ExecStop=/usr/local/bin/redis-cli shutdown
+RuntimeDirectory=redis
+PIDFile=/var/run/redis.pid
+Restart=always
+User=redis
+Group=redis
+
+[Install]
+WantedBy=multi-user.target

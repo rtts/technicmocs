@@ -3,38 +3,61 @@ import sys
 from fabric.api import *
 from fabric.contrib.files import exists, append
 
-env.user = 'masterbuilder'
+project_name    = 'technicmocs'
+env.user        = 'masterbuilder'
+env.host_string = 'technicmocs.created.today'
 
 def deploy():
-    apt_install('build-essential ruby ruby-dev git tcl')
-    gem_setup()
+    # Get the necessary packages
+    apt_install('build-essential ruby ruby-dev git tcl nginx uwsgi uwsgi-plugin-rack*')
     gem_install('bundler rake')
     github('antirez/redis')
     github('antirez/lamernews')
 
+    # Build and install Redis
     with cd('redis'):
         run('git checkout 3.0.1')
         run('make')
         #run('make test')
+        sudo('make install')
+    sudo('adduser --system --group --quiet --home /var/local/lib/redis redis')
+    put('redis.service', '/etc/systemd/system/redis.service', use_sudo=True)
+    put('redis.conf', '/etc/redis.conf', use_sudo=True)
+    sudo('systemctl daemon-reload')
+    sudo('systemctl enable redis')
+    sudo('systemctl start redis')
 
+    # Setup the Lamernews app
     with cd('lamernews'):
         run('sed -i "/ruby \'1.9.3\'/d" Gemfile')
         run('bundle install')
+        put('app_config.rb', 'app_config.rb')
+
+    # Configure nginx
+    put('nginx.conf', '/etc/nginx/sites-enabled/%s' % project_name, use_sudo=True)
+    sudo('systemctl enable nginx')
+    sudo('systemctl start nginx')
+
+    # Configure uwsgi
+    put('uwsgi.ini', '/etc/uwsgi/apps-enabled/%s' % project_name, use_sudo=True)
+    sudo('systemctl enable uwsgi')
+    sudo('systemctl start uwsgi')
 
 def apt_install(packages):
     if command_fails('dpkg -l %s' % packages):
         sudo('apt-get install %s' % packages)
 
+def gem_install(packages):
+    packages = packages.split(' ')
+    gem_setup()
+    for package in packages:
+        if command_fails('gem list -i %s' % package):
+            run('gem install %s' % package)
+
 def gem_setup():
     if command_fails('grep -q GEM_HOME .profile'):
         append('.profile', 'export GEM_HOME=/home/%s/gems' % env.user)
         append('.profile', 'export PATH=$GEM_HOME/bin:$PATH')
-
-def gem_install(packages):
-    packages = packages.split(' ')
-    for package in packages:
-        if command_fails('gem list -i %s' % package):
-            run('gem install %s' % package)
 
 def github(repo):
     directory = repo.split('/')[-1].rstrip('.git')
