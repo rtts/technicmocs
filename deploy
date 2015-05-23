@@ -19,7 +19,7 @@ def deploy():
     sudo('chown %s %s' % (env.user, project_dir))
 
     # Get the necessary packages
-    apt_install('build-essential ruby ruby-dev git tcl nginx curl')
+    apt_install('build-essential ruby ruby-dev python-minimal git tcl nginx curl')
     gem_install('bundler rake uwsgi')
     github('antirez', 'redis')
     github('antirez', 'lamernews')
