@@ -1,11 +1,11 @@
-Technic MOCs *created today*
-============================
+TechnicMOCs
+===========
 
 TechnicMOCs is a social news website about Lego® Technic creations,
 using the [Lamernews](https://github.com/antirez/lamernews) app. You
 can visit the website at
 [technicmocs.created.today](http://technicmocs.created.today/). This
-repository hosts the code used for deploying, maintaining, testing and
+repository contains the code used for deploying, maintaining, testing and
 providing this app.
 
 Installation
@@ -14,26 +14,32 @@ Installation
 So you want to run a copy of TechnicMOCs on your own server? Great!
 Here's how to do it:
 
-1. Get the [Python Fabric](http://www.fabfile.org/) library. Fabric is
-   used by the deploy script to execute commands on remote
-   machines. To install Fabric, issue the following command on you
-   local machine:
+### Step 1
 
-        sudo pip install fabric
+Install the [Python Fabric](http://www.fabfile.org/) library. Fabric
+is used by the deploy script to execute commands on remote
+machines. To install Fabric, issue the following command on your local
+machine:
 
-2. Get SSH access to a sudo user on a Debian or Ubuntu server. Firing
-   up a VPS and running these commands as root should do the trick:
+    sudo pip install fabric
 
-        adduser masterbuilder
-        apt-get install sudo
-        adduser masterbuilder sudo
+### Step 2
 
-3. Open the file `deploy` in your editor and make sure the variables
-   `env.user`, and `env.host_string` contain the correct username and
-   hostname of your server. Now you can run the deploy script with
-   the following command:
+Get SSH access to a sudo user on a Debian or Ubuntu server. Firing
+up a VPS and running these commands as root should do the trick:
 
-        ./deploy
+    adduser masterbuilder
+    apt-get install sudo
+    adduser masterbuilder sudo
+
+### Step 3
+
+Open the file `deploy` in your editor and make sure the variables
+`env.user`, and `env.host_string` contain the correct username and
+hostname of your server. Now you can run the deploy script with the
+following command:
+
+    ./deploy
 
 The deploy script will now automatically download, build, and install
 Lamernews, Redis, nginx, uwsgi, and various dependencies. It will take

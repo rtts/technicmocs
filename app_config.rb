@@ -1,7 +1,7 @@
 # General
-SiteName = "Lego.created.today"
-SiteUrl = "http://lego.created.today/"
-SiteDescription = "The latest and greatest Lego creations"
+SiteName = "TechnicMOCs"
+SiteUrl = "http://technicmocs.created.today/"
+SiteDescription = "The latest and greatest Lego Technic creations"
 
 # Redis config
 RedisURL = "redis://127.0.0.1:6379"
