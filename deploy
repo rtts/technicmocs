@@ -3,22 +3,31 @@ import sys
 from fabric.api import *
 from fabric.contrib.files import exists, append
 
-project_name    = 'technicmocs'
 env.user        = 'masterbuilder'
 env.host_string = 'technicmocs.created.today'
+project_name    = 'technicmocs'
+project_dir     = '/srv/' + project_name
 
 def deploy():
+    '''
+    The deploy() function contains all the steps to turn a vanilla Debian
+    installation into a nginx + uwsgi + ruby + lamernews + redis server
+    '''
+
+    # Create project directory
+    sudo('mkdir -p %s' % project_dir)
+    sudo('chown %s %s' % (env.user, project_dir))
+
     # Get the necessary packages
-    apt_install('build-essential ruby ruby-dev git tcl nginx')
+    apt_install('build-essential ruby ruby-dev git tcl nginx curl')
     gem_install('bundler rake uwsgi')
-    github('antirez/redis')
-    github('antirez/lamernews')
+    github('antirez', 'redis')
+    github('antirez', 'lamernews')
 
     # Build and install Redis
-    with cd('redis'):
+    with cd('%s/redis' % project_dir):
         run('git checkout 3.0.1')
         run('make')
-        #run('make test')
         sudo('make install')
     sudo('adduser --system --group --quiet --home /var/local/lib/redis redis')
     put('redis.service', '/etc/systemd/system/redis.service', use_sudo=True)
@@ -28,15 +37,15 @@ def deploy():
     sudo('systemctl start redis')
 
     # Setup the Lamernews app
-    with cd('lamernews'):
+    with cd('%s/lamernews' % project_dir):
         run('sed -i "/ruby \'1.9.3\'/d" Gemfile')
         rubyrun('bundle install')
         put('app_config.rb', 'app_config.rb')
 
     # Configure uwsgi
-    sudo('cp /srv/%s/gems/bin/uwsgi /usr/local/bin')
-    sudo('mkdir -p /etc/uwsgi')
-    put('uwsgi.ini', '/etc/uwsgi/%s.ini' % project_name, use_sudo=True)
+    sudo('find %s/gems -name uwsgi.ruby -exec cp {} /usr/local/bin/uwsgi \;' % project_dir)
+    sudo('mkdir -p /etc/uwsgi.d')
+    put('uwsgi.ini', '/etc/uwsgi.d/%s.ini' % project_name, use_sudo=True)
     put('uwsgi.service', '/etc/systemd/system/uwsgi.service', use_sudo=True)
     sudo('systemctl daemon-reload')
     sudo('systemctl enable uwsgi')
@@ -54,12 +63,12 @@ def gem_install(packages):
     packages = packages.split(' ')
     for package in packages:
         if ruby_command_fails('gem list -i %s' % package):
-            rubyrun('gem install %s' % package)
+            rubyrun('gem install --verbose --no-document %s' % package)
 
-def github(repo):
-    directory = repo.split('/')[-1]
-    if not exists(directory):
-        run('git clone https://github.com/%s %s' % (repo, directory))
+def github(user, repo):
+    with cd(project_dir):
+        if not exists(repo):
+            run('git clone https://github.com/%s/%s' % (user, repo))
 
 def command_fails(command):
     with settings(hide('warnings'), warn_only=True):
@@ -70,8 +79,9 @@ def ruby_command_fails(command):
         return rubyrun(command).failed
 
 def rubyrun(command):
-    with shell_env(GEM_HOME='/srv/%s/gems' % project_name):
-        run(command)
+    gemdir = '/srv/%s/gems' % project_name
+    with shell_env(GEM_HOME=gemdir), path(gemdir + '/bin'):
+        return run(command)
 
 if __name__ == '__main__':
     deploy()
