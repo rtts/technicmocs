@@ -8,43 +8,44 @@ can visit the website at
 repository contains the code used for deploying, maintaining, testing and
 providing this app.
 
+Requirements
+------------
+
+A Debian-based Linux server that uses
+[systemd](http://freedesktop.org/wiki/Software/systemd/). Debian 8 and
+Ubuntu 15.04 have both successfully been tested.
+
 Installation
 ------------
 
-So you want to run a copy of TechnicMOCs on your own server? Great!
-Here's how to do it:
-
 ### Step 1
 
-Install the [Python Fabric](http://www.fabfile.org/) library. Fabric
-is used by the deploy script to execute commands on remote
-machines. To install Fabric, issue the following command on your local
-machine:
+Install the [Python Fabric](http://www.fabfile.org/) library on your
+local machine:
 
-    sudo pip install fabric
+    pip install fabric
 
 ### Step 2
 
-Get SSH access to a sudo user on a Debian or Ubuntu server. Firing
-up a VPS and running these commands as root should do the trick:
+Set up a sudo user on the remote machine. Running these commands as
+root should do the trick:
 
     adduser masterbuilder
-    apt-get install sudo
     adduser masterbuilder sudo
 
 ### Step 3
 
 Open the file `deploy` in your editor and make sure the variables
 `env.user`, and `env.host_string` contain the correct username and
-hostname of your server. Now you can run the deploy script with the
+hostname of the remote machine. Now run the deploy script with the
 following command:
 
-    ./deploy
+    ./deploy | tee installation.log
 
-The deploy script will now automatically download, build, and install
+The deploy script will automatically download, build, and install
 Lamernews, Redis, nginx, uwsgi, and various dependencies. It will take
 a while, so sit back and enjoy the output on your terminal screen. If
-there is any error the deployment will stop immediately and the error
-message is printed to your screen. Please
+there is any error, the deployment will stop immediately and the error
+message is printed to your screen and to the installation log. Please
 [open up an issue](https://github.com/rtts/technicmocs/issues) to
 report any error messages!
