@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from fabric.api import *
-from fabric.contrib.files import exists, uncomment, contains
+from fabric.colors import blue
+from fabric.contrib.files import exists
 
 env.user          = 'masterbuilder'
 env.host_string   = 'technicmocs.created.today'
@@ -14,14 +15,15 @@ def deploy():
     Debian/Ubuntu installation into a Lamernews server.
     '''
 
-    # Create project directory
-    sudo('mkdir -p %s' % project_dir)
-    sudo('chown %s %s' % (env.user, project_dir))
+    inform('Creating project directory...')
+    if not exists(project_dir):
+        sudo('mkdir -p %s' % project_dir)
+        sudo('chown %s %s' % (env.user, project_dir))
 
-    # Get the necessary packages
+    inform('Getting the necessary packages...')
     apt_install('build-essential python-minimal tcl git nginx curl')
 
-    # Install the correct Ruby version with ruby-install
+    inform('Installing Ruby with ruby-install')
     github('postmodern', 'ruby-install')
     if not exists('%s/ruby/bin/ruby' % project_dir):
         with cd('%s/ruby-install' % project_dir):
@@ -29,20 +31,22 @@ def deploy():
             sudo('make install')
         run('ruby-install -i %s/ruby ruby 1.9.3' % project_dir)
 
-    # Install Redis
+    inform('Installing Redis data structure server...')
     github('antirez', 'redis')
-    with cd('%s/redis' % project_dir):
-        run('git checkout 3.0.1')
-        run('make')
-        sudo('make install')
-    sudo('adduser --system --group --quiet --home /var/local/lib/redis redis')
+    if not exists('/usr/local/bin/redis-server'):
+        with cd('%s/redis' % project_dir):
+            run('git checkout 3.0.1')
+            run('make')
+            sudo('make install')
+    if command_fails('id -u redis'):
+        sudo('adduser --system --group --home /var/local/lib/redis redis')
     put('redis.service', '/etc/systemd/system/redis.service', use_sudo=True)
     put('redis.conf', '/etc/redis.conf', use_sudo=True)
     sudo('systemctl daemon-reload')
     sudo('systemctl enable redis')
     sudo('systemctl start redis')
 
-    # Install the Lamernews app
+    inform('Installing the Lamernews app...')
     github('antirez', 'lamernews')
     gem_install('bundler')
     with cd('%s/lamernews' % project_dir):
@@ -52,7 +56,7 @@ def deploy():
             run('git apply lamernews.patch')
         rubyrun('bundle install')
 
-    # Install uwsgi
+    inform('Installing uwsgi application container...')
     gem_install('uwsgi')
     sudo('find %s/gems -name uwsgi.ruby -exec cp -f {} /usr/local/bin/uwsgi \;' % project_dir)
     sudo('mkdir -p /etc/uwsgi.d')
@@ -62,14 +66,17 @@ def deploy():
     sudo('systemctl enable uwsgi')
     sudo('systemctl start uwsgi')
 
-    # Configure nginx
+    inform('Configuring nginx web server')
     put('nginx.conf', '/etc/nginx/sites-enabled/%s' % project_name, use_sudo=True)
     sudo('systemctl reload nginx')
 
+    inform('Deployment succeeded!')
+
 def apt_install(packages):
-    with settings(hide('warnings', 'stdout', 'stderr'), warn_only=True):
-        needed = run('dpkg -s %s' % packages).failed
-    if needed:
+    '''
+    Runs `apt-get install` if any of the packages is not installed yet
+    '''
+    if command_fails('dpkg -s %s' % packages):
         sudo('apt-get update', pty=False)
         sudo('apt-get install %s' % packages, pty=False)
 
@@ -101,5 +108,20 @@ def rubyrun(command):
     with shell_env(GEM_HOME=gemdir), path('%s/bin:%s/bin' % (rubydir, gemdir), behavior='prepend'):
         return run(command)
 
+def command_fails(command):
+    '''
+    Returns the exit status of a command as a Boolean
+    '''
+    with settings(hide('everything'), warn_only=True):
+        return run(command).failed
+
+def inform(text):
+    '''
+    Prints an informational message
+    '''
+    puts('')
+    puts(blue(text, bold=True))
+
+# Run deploy() when called from the command line:
 if __name__ == '__main__':
     deploy()
