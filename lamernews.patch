@@ -1,25 +1,9 @@
-diff --git a/Gemfile b/Gemfile
-index 07cb31f..d3b6e26 100644
---- a/Gemfile
-+++ b/Gemfile
-@@ -1,7 +1,5 @@
- source 'https://rubygems.org'
- 
--ruby '1.9.3'
--
- gem 'sinatra','~> 1.4.2'
- gem 'redis','~> 3.0.4'
- gem 'hiredis', '~> 0.4.5'
-diff --git a/pbkdf2.rb b/pbkdf2.rb
-index ac3e75b..217325c 100644
---- a/pbkdf2.rb
-+++ b/pbkdf2.rb
-@@ -140,7 +140,7 @@ end
- class String
-   if RUBY_VERSION >= "1.9"
-     def xor_impl(other)
--      result = ""
-+      result = "".encode("ASCII-8BIT")
-       o_bytes = other.bytes.to_a
-       bytes.each_with_index do |c, i|
-         result << (c ^ o_bytes[i])
+diff --git a/config.ru b/config.ru
+index f0a653d..a833705 100644
+--- a/config.ru
++++ b/config.ru
+@@ -1,2 +1,4 @@
++Encoding.default_external = Encoding::UTF_8
++
+ $LOAD_PATH.unshift File.dirname(__FILE__)
+ require './app'
