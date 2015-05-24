@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from fabric.api import *
-from fabric.contrib.files import exists
+from fabric.contrib.files import exists, uncomment, contains
 
 env.user          = 'masterbuilder'
 env.host_string   = 'technicmocs.created.today'
@@ -19,12 +19,18 @@ def deploy():
     sudo('chown %s %s' % (env.user, project_dir))
 
     # Get the necessary packages
-    apt_install('build-essential ruby ruby-dev python-minimal tcl git nginx curl')
-    gem_install('bundler rake uwsgi')
-    github('antirez', 'redis')
-    github('antirez', 'lamernews')
+    apt_install('build-essential python-minimal tcl git nginx curl')
 
-    # Build and install Redis
+    # Install the correct Ruby version with ruby-install
+    github('postmodern', 'ruby-install')
+    if not exists('%s/ruby/bin/ruby' % project_dir):
+        with cd('%s/ruby-install' % project_dir):
+            run('git checkout v0.5.0')
+            sudo('make install')
+        run('ruby-install -i %s/ruby ruby 1.9.3' % project_dir)
+
+    # Install Redis
+    github('antirez', 'redis')
     with cd('%s/redis' % project_dir):
         run('git checkout 3.0.1')
         run('make')
@@ -36,7 +42,9 @@ def deploy():
     sudo('systemctl enable redis')
     sudo('systemctl start redis')
 
-    # Setup the Lamernews app
+    # Install the Lamernews app
+    github('antirez', 'lamernews')
+    gem_install('bundler')
     with cd('%s/lamernews' % project_dir):
         put('app_config.rb', 'app_config.rb')
         if not exists('lamernews.patch'):
@@ -44,7 +52,8 @@ def deploy():
             run('git apply lamernews.patch')
         rubyrun('bundle install')
 
-    # Configure uwsgi
+    # Install uwsgi
+    gem_install('uwsgi')
     sudo('find %s/gems -name uwsgi.ruby -exec cp -f {} /usr/local/bin/uwsgi \;' % project_dir)
     sudo('mkdir -p /etc/uwsgi.d')
     put('uwsgi.ini', '/etc/uwsgi.d/%s.ini' % project_name, use_sudo=True)
@@ -73,7 +82,7 @@ def gem_install(packages):
         with settings(hide('warnings'), warn_only=True):
             needed = rubyrun('gem list -i %s' % package).failed
         if needed:
-            rubyrun('gem install --verbose --no-document %s' % package)
+            rubyrun('gem install --no-ri --no-rdoc %s' % package)
 
 def github(user, repo):
     '''
@@ -87,8 +96,9 @@ def rubyrun(command):
     '''
     Runs a command with the correct GEM_HOME and PATH environment variables
     '''
-    gemdir = '/srv/%s/gems' % project_name
-    with shell_env(GEM_HOME=gemdir), path(gemdir + '/bin'):
+    rubydir = '%s/ruby' % project_dir
+    gemdir = '%s/gems' % project_dir
+    with shell_env(GEM_HOME=gemdir), path('%s/bin:%s/bin' % (rubydir, gemdir), behavior='prepend'):
         return run(command)
 
 if __name__ == '__main__':
