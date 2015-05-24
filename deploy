@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-import sys
 from fabric.api import *
-from fabric.contrib.files import exists, append
+from fabric.contrib.files import exists
 
-env.user        = 'masterbuilder'
-env.host_string = 'technicmocs.created.today'
-project_name    = 'technicmocs'
-project_dir     = '/srv/' + project_name
+env.user          = 'masterbuilder'
+env.host_string   = 'technicmocs.created.today'
+env.output_prefix = False
+project_name      = 'technicmocs'
+project_dir       = '/srv/' + project_name
 
 def deploy():
     '''
-    The deploy() function contains all the steps to turn a vanilla Debian
-    installation into a nginx + uwsgi + ruby + lamernews + redis server
+    The deploy() function contains all the steps to turn a vanilla
+    Debian/Ubuntu installation into a Lamernews server.
     '''
 
     # Create project directory
@@ -19,7 +19,7 @@ def deploy():
     sudo('chown %s %s' % (env.user, project_dir))
 
     # Get the necessary packages
-    apt_install('build-essential ruby ruby-dev python-minimal git tcl nginx curl')
+    apt_install('build-essential ruby ruby-dev python-minimal tcl git nginx curl')
     gem_install('bundler rake uwsgi')
     github('antirez', 'redis')
     github('antirez', 'lamernews')
@@ -38,12 +38,14 @@ def deploy():
 
     # Setup the Lamernews app
     with cd('%s/lamernews' % project_dir):
-        run('sed -i "/ruby \'1.9.3\'/d" Gemfile')
-        rubyrun('bundle install')
         put('app_config.rb', 'app_config.rb')
+        if not exists('lamernews.patch'):
+            put('lamernews.patch', 'lamernews.patch')
+            run('git apply lamernews.patch')
+        rubyrun('bundle install')
 
     # Configure uwsgi
-    sudo('find %s/gems -name uwsgi.ruby -exec cp {} /usr/local/bin/uwsgi \;' % project_dir)
+    sudo('find %s/gems -name uwsgi.ruby -exec cp -f {} /usr/local/bin/uwsgi \;' % project_dir)
     sudo('mkdir -p /etc/uwsgi.d')
     put('uwsgi.ini', '/etc/uwsgi.d/%s.ini' % project_name, use_sudo=True)
     put('uwsgi.service', '/etc/systemd/system/uwsgi.service', use_sudo=True)
@@ -56,29 +58,35 @@ def deploy():
     sudo('systemctl reload nginx')
 
 def apt_install(packages):
-    if command_fails('dpkg -l %s' % packages):
-        sudo('apt-get install %s' % packages)
+    with settings(hide('warnings', 'stdout', 'stderr'), warn_only=True):
+        needed = run('dpkg -s %s' % packages).failed
+    if needed:
+        sudo('apt-get update', pty=False)
+        sudo('apt-get install %s' % packages, pty=False)
 
 def gem_install(packages):
+    '''
+    Runs `gem install` for each package that's not installed already
+    '''
     packages = packages.split(' ')
     for package in packages:
-        if ruby_command_fails('gem list -i %s' % package):
+        with settings(hide('warnings'), warn_only=True):
+            needed = rubyrun('gem list -i %s' % package).failed
+        if needed:
             rubyrun('gem install --verbose --no-document %s' % package)
 
 def github(user, repo):
+    '''
+    Clones a Github repo into the project directory
+    '''
     with cd(project_dir):
         if not exists(repo):
-            run('git clone https://github.com/%s/%s' % (user, repo))
-
-def command_fails(command):
-    with settings(hide('warnings'), warn_only=True):
-        return run(command).failed
-
-def ruby_command_fails(command):
-    with settings(hide('warnings'), warn_only=True):
-        return rubyrun(command).failed
+            run('git clone https://github.com/%s/%s' % (user, repo), pty=False)
 
 def rubyrun(command):
+    '''
+    Runs a command with the correct GEM_HOME and PATH environment variables
+    '''
     gemdir = '/srv/%s/gems' % project_name
     with shell_env(GEM_HOME=gemdir), path(gemdir + '/bin'):
         return run(command)
