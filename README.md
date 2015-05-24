@@ -8,30 +8,33 @@ can visit the website at
 repository contains the code used for deploying, maintaining, testing and
 providing this app.
 
-Requirements
-------------
-
-A Debian-based Linux server that uses
-[systemd](http://freedesktop.org/wiki/Software/systemd/). Debian 8 and
-Ubuntu 15.04 have both successfully been tested.
-
 Installation
 ------------
 
 ### Step 1
 
-Install the [Python Fabric](http://www.fabfile.org/) library on your
-local machine:
+Make sure you have SSH access to a Debian-based Linux server that uses
+[systemd](http://freedesktop.org/wiki/Software/systemd/). Vanilla
+installs of both Debian 8 and Ubuntu 15.04 have successfully been
+tested.
 
-    pip install fabric
-
-### Step 2
-
-Set up a sudo user on the remote machine. Running these commands as
-root should do the trick:
+On a fresh [Linode](https://www.linode.com/) or [DigitalOcean
+VPS](https://www.digitalocean.com/), running these commands as root
+will do the trick:
 
     adduser masterbuilder
     adduser masterbuilder sudo
+
+### Step 2
+
+Install the [Python Fabric](http://www.fabfile.org/) library on your
+local machine by running this command as root:
+
+    pip install fabric
+
+(Note: If this fails with a "command not found" error, please install
+[Python](https://www.python.org/) and [pip](https://pip.pypa.io/) with
+your operating system's package manager)
 
 ### Step 3
 
@@ -43,9 +46,17 @@ following command:
     ./deploy | tee installation.log
 
 The deploy script will automatically download, build, and install
-Lamernews, Redis, nginx, uwsgi, and various dependencies. It will take
-a while, so sit back and enjoy the output on your terminal screen. If
-there is any error, the deployment will stop immediately and the error
-message is printed to your screen and to the installation log. Please
-[open up an issue](https://github.com/rtts/technicmocs/issues) to
-report any error messages!
+[Lamernews](https://github.com/antirez/lamernews),
+[Redis](https://github.com/antirez/redis),
+[nginx](http://wiki.nginx.org/),
+[uwsgi](https://uwsgi-docs.readthedocs.org/), and various
+dependencies. You will be asked for the remote machine's sudo password
+once or twice.  Sit back, relax, and enjoy the output on your terminal
+screen!
+
+Please [open up an issue](https://github.com/rtts/technicmocs/issues)
+to report any error messages.
+
+Note: you can safely run the deploy multiple times. Subsequent runs
+will only update the configuration files, without re-installing all
+the dependencies.
