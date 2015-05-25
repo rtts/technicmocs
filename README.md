@@ -13,13 +13,11 @@ Installation
 
 ### Step 1
 
-Make sure you have SSH access to a Debian-based Linux server that uses
-[systemd](http://freedesktop.org/wiki/Software/systemd/). Vanilla
-installs of both Debian 8 and Ubuntu 15.04 have successfully been
-tested.
-
-On a fresh [Linode](https://www.linode.com/) or [DigitalOcean
-VPS](https://www.digitalocean.com/), running these commands as root
+Get access to a Debian-based server that uses
+[systemd](http://freedesktop.org/wiki/Software/systemd/), such as
+Debian 8 or Ubuntu 15.04. Make sure your user has sudo privileges.
+On a fresh [Linode](https://www.linode.com/) or [DigitalOcean]
+(https://www.digitalocean.com/) VPS, running these commands as root
 will do the trick:
 
     adduser masterbuilder
@@ -43,7 +41,7 @@ Open the file `deploy` in your editor and make sure the variables
 hostname of the remote machine. Now run the deploy script with the
 following command:
 
-    ./deploy | tee installation.log
+    ./deploy
 
 The deploy script will automatically download, build, and install
 [Lamernews](https://github.com/antirez/lamernews),
