@@ -55,6 +55,6 @@ screen!
 Please [open up an issue](https://github.com/rtts/technicmocs/issues)
 to report any error messages.
 
-Note: you can safely run the deploy multiple times. Subsequent runs
+Note: you can safely run the deploy script multiple times. Subsequent runs
 will only update the configuration files, without re-installing all
 the dependencies.
